@@ -81,7 +81,25 @@ class Plog extends React.PureComponent {
                   <TouchableOpacity onPress={this.onHeartPress}>
                     <View style={styles.likeCount}>
                       {likeCount - (liked ? 1 : 0) > 0 && <Text style={styles.likeCountText}>{likeCount}</Text>}
-                      <Ionicons size={20 * ratio} name={'md-heart'} color={liked ? Colors.activeGray : Colors.inactiveGray} />
+                      <Ionicons
+                          size={20 * ratio}
+                          name={'md-heart'}
+                          color={ liked ?  // This is the original option
+                                  Colors.activeGray : 
+                                  Colors.inactiveGray}
+                          /*
+                          // This is purple for liked, #666 for unliked
+                          color={ liked ?
+                                  Colors.selectionColor :
+                                  Colors.activeGray}
+                          */
+                          /*
+                          // This is for the green border (if unliked)
+                          borderColor={ liked ?
+                                        null :
+                                        Colors.secondaryColor}
+                          */
+                      />
                     </View>
                   </TouchableOpacity>
                 </View>
