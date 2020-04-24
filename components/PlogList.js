@@ -79,26 +79,26 @@ class Plog extends React.PureComponent {
                     {moment(when).fromNow()}
                   </Text>
                   <TouchableOpacity onPress={this.onHeartPress}>
-                    <View style={styles.likeCount}>
+                    <View style={ liked ? // This is for the green border (if unliked)
+                                  styles.likeCountLiked :
+                                  styles.likeCountUnliked
+                                }      
+                    >
                       {likeCount - (liked ? 1 : 0) > 0 && <Text style={styles.likeCountText}>{likeCount}</Text>}
                       <Ionicons
                           size={20 * ratio}
                           name={'md-heart'}
-                          color={ liked ?  // This is the original option
-                                  Colors.activeGray : 
-                                  Colors.inactiveGray}
+                      //    color={ liked ?  // This is the original option
+                      //            Colors.activeGray : 
+                      //            Colors.inactiveGray
+                      //          }
                           /*
                           // This is purple for liked, #666 for unliked
-                          color={ liked ?
-                                  Colors.selectionColor :
-                                  Colors.activeGray}
-                          */
-                          /*
-                          // This is for the green border (if unliked)
-                          borderColor={ liked ?
-                                        null :
-                                        Colors.secondaryColor}
-                          */
+                      */    color={ liked ?
+                                    Colors.selectionColor :
+                                    Colors.activeGray
+                                  }
+                      /*    */
                       />
                     </View>
                   </TouchableOpacity>
@@ -219,9 +219,21 @@ const styles = StyleSheet.create({
     detailsStyle: {
       justifyContent: 'space-between',
     },
-    likeCount: {
+    likeCountLiked: {
       flexDirection: 'row',
       alignItems: 'center',
+      borderColor: Colors.selectionColor,
+      borderRadius: 5,
+      borderWidth: 2,
+      paddingHorizontal: 3,
+    },
+    likeCountUnliked: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderColor: Colors.secondaryColor,
+      borderRadius: 5,
+      borderWidth: 2,
+      paddingHorizontal: 3,
     },
     likeCountText: {
       marginRight: 8,
