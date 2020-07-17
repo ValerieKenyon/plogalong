@@ -8,12 +8,19 @@ import {
   Modal,
   Clipboard,
   TextInput,
+  Share,
 } from 'react-native';
 import Button from '../components/Button';
 import Colors from '../constants/Colors';
 import DismissButton from '../components/DismissButton';
 import { ShareDialog } from 'react-native-fbsdk';
 import $S from '../styles';
+
+import {
+  ActionSheetProvider,
+  connectActionSheet,
+  useActionSheet,
+} from '@expo/react-native-action-sheet';
 
 export default InviteModalScreen = ({isInviteModalVisible, toggleIsInviteModalVisible}) => {
   const PLOGALONG_LINK = "http://www.plogalong.com";
@@ -24,26 +31,31 @@ export default InviteModalScreen = ({isInviteModalVisible, toggleIsInviteModalVi
   };
   const writeToClipboard = useCallback(async () => {
     await Clipboard.setString(PLOGALONG_LINK);
-  }, []);
+  }, [PLOGALONG_LINK]);
 
-  const shareTo = useCallback(() => {}, []);
+  // https://docs.expo.io/versions/latest/react-native/share/
+  const shareTo = async () => {
+    try {
+      const result = await Share.share({
+        url: PLOGALONG_LINK,
+        message: SHARE_LINK_CONTENT.contentDescription,
+        title: "Share our link on social media",
+      });
+      if (result.action === Share.sharedAction) {
+        if (result.activityType) {
+          // shared with activity type of result.activityType
+        } else {
+          // shared
+        }
+      } else if (result.action === Share.dismissedAction) {
+        // dismissed
+      }
+    } catch (error) {
+      alert(error.message);
+    }
+  };
 
-  const shareLinkWithShareDialog = useCallback(() => {
-    ShareDialog.canShow(SHARE_LINK_CONTENT).then(canShow => {
-      if (canShow) {
-        return ShareDialog.show(SHARE_LINK_CONTENT);
-      }
-    }).then(result => {
-      if (result.isCancelled) {
-        alert('Share operation was cancelled');
-      } else {
-        alert('Share was successful with postId: '
-          + result.postId);
-      }
-    }, error => {
-        alert('Share failed with error: ' + error.message);
-    });
-  }, []);
+  ShareDialog.canShow = async () => (true);
 
   return (
     <Modal
@@ -70,13 +82,15 @@ export default InviteModalScreen = ({isInviteModalVisible, toggleIsInviteModalVi
           <Button title="Copy Link" onPress={writeToClipboard} style={styles.copyButton} />
         </View>
         <View style={styles.inviteModalContainers}>
-          <Button title="Share on Facebook" onPress={shareLinkWithShareDialog} style={styles.shareButtons} />
+          <Button title="Share on your favorite app" onPress={shareTo} style={styles.shareButtons} />
+{/*          <Button title="Share on Facebook" onPress={shareLinkWithShareDialog} style={styles.shareButtons} />
         </View>
         <View style={styles.inviteModalContainers}>
           <Button title="Share on Twitter" onPress={shareTo} style={styles.shareButtons} />
         </View>
         <View style={styles.inviteModalContainers}>
           <Button title="Share on Instagram" onPress={shareTo} style={styles.shareButtons} />
+  */}
         </View>
         <View style={{ flex: 1 }}/>
       </SafeAreaView>
