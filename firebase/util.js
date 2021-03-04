@@ -27,12 +27,11 @@ export async function uploadImage(uri, path, options={}) {
   }
 
   const ref = storage.ref().child(path);
-  const upload = ref.put(await fetch(uri).then(response => response.blob()));
+  const upload = ref.put(await fetch(uri).then(response => response.blob()), { contentType: 'image/jpeg' });
 
   if (options.progress)
     upload.on(TaskEvent.STATE_CHANGED, options.progress);
 
   await upload;
-
   return await ref.getDownloadURL();
 }

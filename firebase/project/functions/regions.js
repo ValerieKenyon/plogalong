@@ -1,13 +1,15 @@
 const admin = require('firebase-admin');
 const $u = require('./util');
-const { addPlogToRegion, updateLeaderboard } = require('./shared');
+const { addPlogToRegion, updateLeaderboard, timeUnits } = require('./shared');
 
-const { Regions } = require('./collections');
+const { Regions, Users } = require('./collections');
 
 /** @typedef {import('./shared').PlogData} PlogData */
 /** @typedef {import('./shared').PlogDataWithId} PlogDataWithId */
 /** @typedef {import('./shared').RegionData} RegionData */
+/** @typedef {import('./shared').UserData} UserData */
 /** @typedef {import('./shared').UserStats} UserStats */
+/** @typedef {import('./shared').TimeUnit} TimeUnit */
 
 /**
  * @template P
@@ -24,6 +26,7 @@ async function deletePlogFromRegions(plogID) {
 }
 
 
+/** @typedef {Unwrapped<ReturnType<typeof $u.locationInfoForRegion>>} LocationInfo */
 /**
  * @param {admin.firestore.DocumentSnapshot<PlogData>} plog
  * @param {admin.firestore.Transaction} [t]
@@ -35,7 +38,7 @@ async function getRegionForPlog(plog, t) {
   let regionDoc;
   /** @type {Unwrapped<ReturnType<typeof Regions.get>>} */
   let regionSnap;
-  /** @type {Unwrapped<ReturnType<typeof $u.locationInfoForRegion>>} */
+  /** @type {LocationInfo} */
   let regionLocationData;
 
   {
@@ -62,12 +65,13 @@ async function getRegionForPlog(plog, t) {
 
 /**
  * @param {PlogDataWithId} plogData
- * @param {admin.firestore.DocumentReference<RegionData>} regionDoc
  * @param {admin.firestore.DocumentSnapshot<RegionData>} regionSnap
+ * @param {LocationData} regionLocationData
  * @param {UserStats} userStats
  * @param {admin.firestore.Transaction} [t]
  */
-async function plogCreated(plogData, regionDoc, regionSnap, regionLocationData, userStats, t) {
+async function plogCreated(plogData, regionSnap, regionLocationData, userStats, t) {
+  const regionDoc = regionSnap.ref;
   const geohash = plogData.g.geohash.slice(0, 7);
   /** @type {RegionData} */
   let regionData;
@@ -108,7 +112,7 @@ async function plogCreated(plogData, regionDoc, regionSnap, regionLocationData, 
     if (t)
       t.set(regionDoc, regionData);
     else
-      regionDoc.set(regionData);
+      await regionDoc.set(regionData);
   }
 
   return regionData;
@@ -149,9 +153,55 @@ async function updateLeaderboardsForUser(userID, userStats, t) {
   return updated;
 }
 
+/**
+ * @param {string} regionID
+ * @param {number} [max]
+ * @param {TimeUnit} [unit]
+ *
+ * @returns {Promise<(UserData & { id: string })[]>}
+ */
+async function getLeaders(regionID, max=20, unit='total') {
+  const field = `stats.${unit}.region.${regionID}.count`;
+  const { when } = timeUnits.find(tu => tu.unit === unit);
+  const whenID = when(new Date());
+
+  const results = [];
+  let lastDoc;
+  let left = max;
+
+  while (left > 0) {
+    const limit = Math.ceil(left * 1.5);
+    let query = Users.where(field, '>=', 1).orderBy(field).limitToLast(left);
+
+    if (lastDoc)
+      query = query.endBefore(lastDoc);
+
+    const snap = await query.get();
+
+    for (const user of snap.docs.reverse()) {
+      const userData = user.data();
+      if (!userData.providers) continue;
+      if (userData.stats[unit].whenID !== whenID) continue;
+
+      userData.id = user.id;
+      results.push(userData);
+    }
+
+    if (snap.size < limit)
+      break;
+
+    lastDoc = snap.docs[limit-1];
+    left = max - results.length;
+  }
+
+  return results;
+}
+
+
 module.exports = {
   deletePlogFromRegions,
   getRegionForPlog,
   plogCreated,
   updateLeaderboardsForUser,
+  getLeaders,
 };

@@ -109,10 +109,15 @@ export const reportPlog = plogID => (
     }
   });
 
-export const loadHistory = (userID, replace=true) => ({
-  type: types.LOAD_HISTORY,
-  payload: { userID, replace }
-});
+export const loadHistory = (userID, replace=true) => (
+  (dispatch, getState) => {
+    const { log } = getState();
+    if (!log.historyLoading)
+      dispatch({
+        type: types.LOAD_HISTORY,
+        payload: { userID, replace }
+      });
+  });
 
 export const loadLocalHistory = () => ({
   type: types.LOAD_LOCAL_HISTORY,
@@ -204,20 +209,6 @@ export const signupWithEmail = (email, password) => (
     }
 );
 
-export const linkToEmail = (email, password) => (
-    async dispatch => {
-      dispatch(signup('email', { email, password }));
-        try {
-            const credential = firebase.auth.EmailAuthProvider.credential(email, password);
-            const creds = await auth.currentUser.linkWithCredential(credential);
-            dispatch(setCurrentUser(creds.user.toJSON()));
-        } catch(err) {
-          dispatch(signupError(err));
-        }
-    }
-);
-
-
 export const loginWithEmail = _action(auth.signInWithEmailAndPassword.bind(auth), {
   pre: signup('email'),
   err: loginError
@@ -295,6 +286,16 @@ export const gotLocationInfo = locationInfo => ({
 export const flashMessage = (message, options=null) => ({
   type: types.FLASH,
   payload: { text: message, stamp: Date.now(), options }
+});
+
+export const pauseFlashMessages = () => ({
+  type: types.PAUSE_MESSAGES,
+  payload: { paused: true }
+});
+
+export const unpauseFlashMessages = () => ({
+  type: types.PAUSE_MESSAGES,
+  payload: { paused: false }
 });
 
 export const verifyEmail = oobCode => (

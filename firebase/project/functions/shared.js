@@ -40,6 +40,7 @@
 /** @typedef {PlogData & { id: string, LocalDate: Date }} ExtendedPlogData */
 
 /** @typedef {import('../../regions.js').RegionData} RegionData */
+/** @typedef {RegionData["recentPlogs"]} RecentPlogs */
 
 /**
   * @typedef {{ completed: Timestamp, updated: Timestamp, refID?: string } & { [k in PropertyKey ]: any}} AchievementData
@@ -150,6 +151,7 @@ function _makeStreakHandler(target, points, floor=floorDay, inc=incDay) {
     // Date when the longest streak was lost
     streakLost: null,
   };
+
   return {
     initial,
     points,
@@ -187,9 +189,9 @@ function _makeStreakHandler(target, points, floor=floorDay, inc=incDay) {
     },
     merge(left, right) {
       return {
-        streak: max(left.streak, right.streak),
+        streak: left.updated > right.streak ? left.streak : right.streak,
         longestStreak: max(left.longestStreak, right.longestStreak),
-        streakLost: newest(left.streakLost, right.streakLost)
+        streakLost: left.longestStreak > right.longestStreak ? left.streakLost : right.streakLost,
       };
     }
   };
@@ -222,7 +224,7 @@ const BreakTheSealAchievement = {
   }
 };
 
-const withPlogMonthDay = fn => (({LocalDate}) => fn(LocalDate.getMonth(), LocalDate.getDate()));
+const withPlogMonthDay = fn => (({LocalDate}) => fn(LocalDate.getMonth(), LocalDate.getDate(), LocalDate.getHours(), LocalDate.getDay()));
 
 // Full list of achievements:
 // https://airtable.com/shrHq1EmZzFO7hiQe/tblbArS3zXcLPwdbm/viw9Jk1OkBKdN5Iwc?blocks=bip681nyUrUqlzD8e
@@ -253,6 +255,8 @@ const AchievementHandlers = {
   dogsBestFriend: _makeOneShotAchievement(plog => plog.HelperType === 'dog', 20),
   babysitter: _makeOneShotAchievement(plog => plog.HelperType === 'teacher', 20),
   twofer: _makeOneShotAchievement(plog => plog.HelperType === 'friend', 20),
+  kittyCorner: _makeOneShotAchievement(plog => plog.HelperType === 'cat', 20),
+
   bugZapper: _makeOneShotAchievement(
     plog => (plog.TrashTypes||[]).includes('standing_water'), 20),
   dangerPay: _makeOneShotAchievement(
@@ -262,11 +266,24 @@ const AchievementHandlers = {
   daredevil: _makeOneShotAchievement(plog => plog.ActivityType === 'biking', 20),
   marathoner: _makeOneShotAchievement(plog => plog.ActivityType === 'running', 20),
   takeAHike: _makeOneShotAchievement(plog => plog.ActivityType === 'hiking', 20),
+  hotToTrot: _makeOneShotAchievement(plog => plog.ActivityType === 'horseback_riding', 20),
+  adoptAHighwayForDriving: _makeOneShotAchievement(plog => plog.ActivityType === 'driving', 20),
+  evilKnievelForMotorbiking: _makeOneShotAchievement(plog => plog.ActivityType === 'motorbiking', 20),
+  snowflakeForWinterSports: _makeOneShotAchievement(plog => plog.ActivityType === 'winter_sports', 20),
+  waterSports: _makeOneShotAchievement(plog => ['canoeing', 'swimming'].includes(plog.ActivityType), 20),
 
   dogDays: _makeOneShotAchievement(withPlogMonthDay((m, d) => (m === 5 && d === 21) || m === 6 || m === 7 || (m === 8 && d < 21))),
   springChicken: _makeOneShotAchievement(withPlogMonthDay((m, d) => (m === 2 && d === 21) || m === 3 || m === 4 || (m === 5 && d < 21))),
   fallColor: _makeOneShotAchievement(withPlogMonthDay((m, d) => (m === 8 && d === 21) || m === 9 || m === 10 || (m === 11 && d < 21))),
   polarBear: _makeOneShotAchievement(withPlogMonthDay((m, d) => (m === 11 && d === 21) || m === 0 || m === 1 || (m === 2 && d < 21))),
+  boo: _makeOneShotAchievement(withPlogMonthDay((m, d) => (m === 9 && d === 31)), 100),
+  happyHolidays: _makeOneShotAchievement(withPlogMonthDay((m, d) => (m === 11)), 100),
+  happyNewYear: _makeOneShotAchievement(withPlogMonthDay((m, d) => (m === 0 && d === 1)), 100),
+  // earlyBird is 4am-noon; nightOwl is 5pm-midnight
+  earlyBird: _makeOneShotAchievement(withPlogMonthDay((m, d, t) => (t >= 4 && t < 12)), 50),
+  nightOwl: _makeOneShotAchievement(withPlogMonthDay((m, d, t) => (t >= 17)), 50),
+
+  // plogTurkey: _makeOneShotAchievement(withPlogMonthDay((m, d, t, dy) => ((m === 10 && dy === 4 && d > 21 && d < 29))), 100),
 
   breakTheSeal: BreakTheSealAchievement,
 };
@@ -429,6 +446,10 @@ const timeUnits = [
  * @property {UserAchievements} achievements
  * @property {string} [profilePicture]
  * @property {string} displayName
+ * @property {boolean} emailUpdatesEnabled
+ * @property {boolean} privateProfile
+ * @property {string} homeBase
+ * @property {string} [providers]
  */
 
 /**
@@ -495,6 +516,14 @@ function updateUserStats(stats, plog, bonusMinutes, regionID) {
 }
 
 /**
+ * @param {UserAchievements} achievements
+ */
+function tallyBonusMinutes(achievements) {
+  const completed = Object.keys(achievements).filter(k => achievements[k] && achievements[k].completed);
+  return calculateBonusMinutes(completed);
+}
+
+/**
  * @param {UserStats|RegionStats} stats
  * @param {Date} date
  * @param {number} bonusMinutes
@@ -510,6 +539,9 @@ function addBonusMinutes(stats, date, bonusMinutes) {
  * @param {UserStats} statsB
  */
 function mergeStats(statsA, statsB) {
+  if (!statsA) return statsB;
+  if (!statsB) return statsA;
+
   /** @type {UserStats} */
   const merged = {};
   for (let {unit} of timeUnits) {
@@ -565,7 +597,7 @@ function calculateBonusMinutes(achievements) {
 function addPlogToRecents(recentPlogs, plogData, maxLength=20) {
   if (!recentPlogs)
     recentPlogs = { ids: [], data: {} };
-  if (recentPlogs.ids.push(plogData.id) > maxLength) {
+  if (recentPlogs.ids.unshift(plogData.id) > maxLength) {
     for (const plogID of recentPlogs.ids.slice(maxLength))
       delete recentPlogs.data[plogID];
 
@@ -585,11 +617,13 @@ function addPlogToRecents(recentPlogs, plogData, maxLength=20) {
  * @param {UserPlogStatsForRegion} plogStats
  * @param {boolean} [shouldUpdateLeaderboard]
  *
- * @returns {Partial<RegionData>}
+ * @returns {Pick<RegionData, 'recentPlogs' | 'stats' | 'leaderboard'>}
  */
 function addPlogToRegion(regionData, plogData, plogStats, shouldUpdateLeaderboard=true) {
   const leaderboard = (shouldUpdateLeaderboard &&
-                       updateLeaderboard(regionData.leaderboard, plogData.UserID, plogStats)) || regionData.leaderboard;
+                       updateLeaderboard(regionData.leaderboard, plogData.UserID, plogStats))
+        || regionData.leaderboard
+        || null;
   return {
     recentPlogs: addPlogToRecents(regionData.recentPlogs, plogData),
     stats: updateStats(regionData.stats, plogData),
@@ -654,6 +688,20 @@ function updateLeaderboard(leaders, userID, stats, n=20) {
   return leaders;
 }
 
+/**
+ * @param {RegionData["leaderboard"]} leaders
+ * @param {string} userID
+ *
+ * @returns {RegionData["leaderboard"]} copy of the leaderboard with userID removed
+ */
+function removeFromLeaderboard(leaders, userID) {
+  leaders = Object.assign({ ids: [], data: {} }, leaders);
+
+  leaders.ids = leaders.ids.filter(id => id !== userID);
+  delete leaders.data[userID];
+  return leaders;
+}
+
 module.exports = {
   AchievementHandlers,
   timeUnits,
@@ -668,4 +716,7 @@ module.exports = {
 
   addPlogToRegion,
   updateLeaderboard,
+  removeFromLeaderboard,
+
+  tallyBonusMinutes,
 };

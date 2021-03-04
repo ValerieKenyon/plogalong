@@ -18,16 +18,18 @@ import {
 import { specUpdate, revert, updateInCopy } from '../../util/redux';
 
 /** @typedef {import('../../firebase/plogs').Plog} Plog */
+/** @typedef {{ id: Plog["id"], status: 'loading'|'deleted'|'error', error?: Error }} PlogStub */
+/** @typedef {Plog | PlogStub} LocalPlogState */
 
 const initialState = {
   // Look up a plog by ID
-  /** @type {Object<string,Plog>} */
+  /** @type {Object<string, LocalPlogState>} */
   plogData: {},
   /** @type {string[]} */
   history: [],
   /** @type {string[]} */
   localPlogs: [],
-  /** @type {import('../../firebase/regions').Region} */
+  /** @type {import('../../firebase/regions').RegionData} */
   region: null,
   historyLoading: false,
   localPlogsLoading: false,

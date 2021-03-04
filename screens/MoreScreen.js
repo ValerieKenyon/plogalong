@@ -7,6 +7,8 @@ import {
 
 import { createStackNavigator } from '@react-navigation/stack';
 
+import Colors from '../constants/Colors';
+
 import Banner from '../components/Banner';
 import Button from '../components/Button';
 import Header from '../components/Header';
@@ -21,16 +23,8 @@ import AchievementScreen from './AchievementScreen';
 
 
 import Arrow from '../assets/svg/headerBackImage/arrow.svg';
-import $S from '../styles';
+import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 
-
-const decamel = s => s.replace(/([^A-Z])([A-Z])/gu, '$1 $2');
-
-const routeName = ({state, params, name}, defaultName=name) => {
-    return state ?
-        routeName(state.routes[state.index]) :
-        (params && params.title || defaultName);
-};
 
 export class MoreScreen extends React.Component {
   state = {
@@ -49,9 +43,9 @@ export class MoreScreen extends React.Component {
     {label: 'About Plogalong', route: 'About'},
     {label: 'Achievements', route: 'Achievements'},
     {label: 'Contact Us', route: 'Contact Us'},
-    {label: 'Plogging Supplies', route: 'Plogging Supplies'},
-    {label: 'Privacy', route: 'Privacy'},
-    {label: 'Terms', route: 'Terms'},
+    {route: 'Plogging Supplies'},
+    {label: 'Privacy & Security', route: 'Privacy & Security'},
+    {label: 'Terms & Conditions', route: 'Terms & Conditions'},
   ];
 
   render() {
@@ -72,19 +66,19 @@ export class MoreScreen extends React.Component {
 
 const Stack = createStackNavigator();
 
-export default ({navigation, route}) => {
+export default ({route}) => {
     return (
         <Stack.Navigator screenOptions={{
             headerBackTitle: ' ',
             headerBackImage: () => <Arrow fill="purple"/>,
-            title: decamel(routeName(route)),
+            title: getFocusedRouteNameFromRoute(route),
             headerTitle: (props) => (
                 <Header text={props.children} />
             ),
             headerTitleAlign: 'center',
             headerStyle: {
                 backgroundColor: '#fff',
-                borderBottomColor: 'purple',
+                borderBottomColor: Colors.activeColor,
                 borderBottomWidth: 4,
             }
         }}
@@ -93,8 +87,8 @@ export default ({navigation, route}) => {
           <Stack.Screen name="About" component={ AboutScreen }/>
           <Stack.Screen name="Achievements" component={ AchievementScreen }/>
           <Stack.Screen name="Contact Us" component={ ContactScreen }/>
-          <Stack.Screen name="Privacy" component={ PrivacyScreen }/>
-          <Stack.Screen name="Terms" component={ TermsScreen }/>
+          <Stack.Screen name="Privacy & Security" component={ PrivacyScreen }/>
+          <Stack.Screen name="Terms & Conditions" component={ TermsScreen }/>
           <Stack.Screen name="Plogging Supplies" component={ PloggingSuppliesScreen }/>
         </Stack.Navigator>
     );
@@ -105,6 +99,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
     paddingTop: 20,
+    paddingBottom: 35,
   },
   banner: {
     marginBottom: 20,

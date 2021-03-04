@@ -2,7 +2,7 @@ const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const app = require('./app');
 
-const { updateAchievements, updateUserStats, AchievementHandlers, calculateBonusMinutes, addBonusMinutes, localPlogDate} = require('./shared');
+const { updateAchievements, updateUserStats, AchievementHandlers, calculateBonusMinutes, addBonusMinutes, localPlogDate, tallyBonusMinutes } = require('./shared');
 const $u = require('./util');
 const regions = require('./regions');
 const email = require('./email');
@@ -31,8 +31,7 @@ async function *queryGen(query, limit=100) {
   }
 }
 
-const Users = app.firestore().collection('users');
-const Plogs = app.firestore().collection('plogs');
+const { Users, Plogs } = require('./collections');
 
 /** @typedef {import('./shared').AchievementType} AchievementType */
 /**
@@ -65,37 +64,54 @@ async function initAchievements(userID, types) {
 
 // TODO Ignore duplicate events
 exports.plogCreated = functions.firestore.document('/plogs/{documentID}')
-  .onCreate(async (snap, context) => {
+  .onCreate(async (snap, _context) => {
+    /** @type {import('./shared').PlogData} */
     const plogData = snap.data();
     const {UserID} = plogData;
     let initUserAchievements = [];
     const userDocRef = Users.doc(UserID);
 
     await app.firestore().runTransaction(async t => {
+      /** @type {import('./shared').UserData} */
       const userData = await t.get(userDocRef).then(u => u.data());
+      try {
+        // Already processed this plog
+        if (userData.stats.latest.id === snap.id)
+          return;
+      } catch (_) {}
+
       /** @type {Unwrapped<ReturnType<typeof regions.getRegionForPlog>>} */
       let regionInfo;
 
       if (plogData.Public && plogData.coordinates) {
         regionInfo = await regions.getRegionForPlog(snap, t);
+        console.log('Found region for plog:', regionInfo.locationInfo.id);
       }
 
-      // Update the user stats first. If a region ID is supplied, the user's
-      // stats for that region will also be updated
       plogData.id = snap.id;
+
+      // Update the user stats first, initializing them if necessary. If a
+      // region ID is supplied, the user's stats for that region will also be
+      // updated
       let userStats = updateUserStats(userData.stats, plogData, 0, regionInfo && regionInfo.locationInfo.id);
 
       // regions.plogCreated uses userStats to potentially update the region
       // leaderboard
       const regionData = regionInfo &&
-            await regions.plogCreated(plogData, regionInfo.doc, regionInfo.snap, regionInfo.locationInfo, userStats, t);
+            await regions.plogCreated(plogData, regionInfo.snap, regionInfo.locationInfo, userStats, t);
 
       // achievements may depend on locally aggregated data (stats, leaderboard)
       const {achievements, completed, needInit} = updateAchievements(userData.achievements, plogData, regionData);
-c
+
       if (completed.length) {
+        console.log(`completed achievements:`, completed);
         // add bonus minutes from achievements
         userStats = addBonusMinutes(userStats, localPlogDate(plogData), calculateBonusMinutes(completed));
+      }
+
+      if (isNaN(userStats.total.bonusMinutes)) {
+        // Recalculate all bonus minutes if necessary
+        userStats.total.bonusMinutes = tallyBonusMinutes(achievements);
       }
 
       t.update(userDocRef, {
@@ -122,10 +138,9 @@ c
     }
   });
 
-exports.plogDeleted = functions.firestore.document('/plogs/{plogID}')
-  .onDelete(async (snap, context) => {
-    await $u.deletePlogFromRegions(snap.id);
-  });
+// exports.plogDeleted = functions.firestore.document('/plogs/{plogID}')
+//   .onDelete(async (snap, context) => {
+//   });
 
 exports.updateUserPlogs = functions.firestore.document('/users/{userId}')
     .onUpdate(async (snap, context) => {
@@ -162,6 +177,58 @@ exports.onUserDeleted = functions.auth.user().onDelete(async user => {
   await users.deleteUserData(user.uid);
 });
 
+exports.onImageUpload = functions.storage.bucket('plogalong-a723a.appspot.com').object().onFinalize(async (object, context) => {
+  const match = object.name.match(/^user(data|public|test)\/.*?\.jpe?g/i);
+
+  if (match) {
+    // Storage rules prevent clients from setting arbitrary metadata on files
+    if (object.metadata && object.metadata.scanned) {
+      console.log('Skipping scan for', object.name, '(already scanned)');
+      return;
+    }
+
+    const file = app.storage().bucket(object.bucket).file(object.name);
+
+    try {
+      if (context.authType !== 'ADMIN' && match[1] !== 'test') {
+        const plogPath = object.name.match(/^user(?:data|public)\/([a-z0-9]+)\/plog\/([a-z0-9]+)\/(\d+)\.jpe?g/i);
+
+        if (plogPath) {
+          const plog = await Plogs.doc(plogPath[2]).get();
+          if (!plog.exists || plog.data().UserID !== plogPath[1]) {
+            console.log('Deleting file', object.name, 'for nonexistent plog ID:', plogPath[2]);
+            await file.delete();
+            return;
+          }
+        }
+      }
+
+      console.log('Scanning user-uploaded file', object.name);
+      const { safeSearchAnnotation, labelAnnotations } = await $u.detectLabels(file);
+      const fileMeta = {
+        scanned: '1',
+        'marked-safe': '1',
+        labels: JSON.stringify(
+          labelAnnotations.map(({ mid, description }) => ({ mid, description }))
+        )
+      };
+
+      const nsfwTags = $u.nsfwTags(safeSearchAnnotation);
+      if (nsfwTags.length) {
+        fileMeta['nsfw-tags'] = nsfwTags.join(',');
+        fileMeta['marked-safe'] = '0';
+      }
+
+      console.log('Setting metadata:', JSON.stringify(fileMeta));
+      file.setMetadata({ metadata: fileMeta }).catch(err => {
+        console.error('Unable to set file metadata on', object.name, err);
+      });
+    } catch (err) {
+      console.log(err);
+    }
+  }
+});
+
 const http = require('./http');
 exports.likePlog = functions.https.onCall(http.likePlog);
 exports.loadUserProfile = functions.https.onCall(http.loadUserProfile);
@@ -170,3 +237,4 @@ exports.reportPlog = functions.https.onCall(http.reportPlog);
 exports.getRegionInfo = functions.https.onCall(http.getRegionInfo);
 exports.getRegionLeaders = functions.https.onCall(http.getRegionLeaders);
 exports.userLinked = functions.https.onCall(http.userLinked);
+exports.httpEndpoint = functions.https.onCall(http.httpEndpoint);

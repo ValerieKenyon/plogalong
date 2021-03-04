@@ -13,7 +13,7 @@ const times = (n, fn) => {
 
 /**
  * @template T
- * @template {(item: T, index?: i) => any} Fn
+ * @template {(item: T, index?: number) => any} Fn
  * @param {Fn} fn
  * @param {T[]} xs
  * @returns {ReturnType<Fn>[]}
@@ -24,6 +24,24 @@ function keep(fn, xs) {
   for (const x of xs) {
     const val = fn(x, i++);
     if (val) result.push(val);
+  }
+  return result;
+}
+
+
+/**
+ * @template T
+ * @template {(item: T, index?: number) => any} Fn
+ * @param {Fn} fn
+ * @param {T[]} xs
+ *
+ * @returns {ReturnType<Fn>}
+ */
+function mapcat(fn, xs) {
+  const result = [];
+  let i = 0;
+  for (const x of xs) {
+    result.push(...fn(x, i++));
   }
   return result;
 }
@@ -85,6 +103,29 @@ const empty = obj => {
 const getter = f => (
   typeof f === 'string' ? (x => x[f]) : f
 );
+
+
+/**
+ * Filter and rewrite the keys of an object and return the new resulting object.
+ * If the predicate function returns a falsey value for a key-value pair, the
+ * pair will be omitted from output. If it returns a string or symbol, the value
+ * will be stored in the new object at that new key. For any other truthy return
+ * value, the pair will be included as is.
+ *
+ * @param {{ [ k in PropertyKey]: any }} obj
+ * @param {(key: PropertyKey, item: any) => (PropertyKey | false | null)} fn
+ */
+function keepKeys(obj, fn) {
+  return Object.keys(obj).reduce((m, k) => {
+    const result = fn(k, obj[k]);
+    if (result) {
+      const outKey = typeof result === 'string' || typeof result === 'symbol' ? result : k;
+      m[outKey] = obj[k];
+    }
+    return m;
+  }, {});
+}
+
 
 /**
  * @template T
@@ -179,10 +220,11 @@ module.exports = {
   filterNorm,
   indexBy,
   keep,
+  mapcat,
   mapNorm,
   normList,
   times,
   update,
   partition,
-
+  keepKeys
 };

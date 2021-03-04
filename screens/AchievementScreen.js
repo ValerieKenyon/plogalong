@@ -18,6 +18,7 @@ import AchievementSwipe from '../components/AchievementSwipe';
 import Banner from '../components/Banner';
 import Colors from '../constants/Colors';
 import Leaderboard from '../screens/Leaderboard';
+import SegmentedControl from '../components/SegmentedControl';
 
 
 export const AchievementScreen = ({currentUser }) => {
@@ -32,34 +33,24 @@ export const AchievementScreen = ({currentUser }) => {
         };
       }, shallowEqual);
 
-    const [isBadges, setIsBadges] = useState(true);
+  const [isBadges, setIsBadges] = useState(true);
+  const onTabPress = React.useCallback((idx) => {
+    setIsBadges(idx === 0);
+  }, []);
 
     const stats = getStats(currentUser, 'total');
 
     return (
-      <View style={{margin: 15, padding: 0,}}>
+      <View style={styles.container}>
         <Banner >
-            {stats.count === 0 
-                ? "Plog something to earn your first badge!" 
+            {stats.count === 0
+                ? "Plog something to earn your first badge!"
                 : `You earned ${formatCompletedBadges(calculateCompletedBadges(currentUser.data.achievements))} and \n ${formatPloggingMinutes(calculateTotalPloggingTime(stats))}!`
             }
         </Banner>
-        <View style={styles.toggle}>
-            <View style={styles.spacer}></View>
-            <TouchableWithoutFeedback onPress={() => setIsBadges(true)}>
-                <View  style={isBadges ? styles.isBadges : styles.notBadges}>
-                    <Text style={{color: isBadges ? 'white' : Colors.secondaryColor}}>BADGES</Text>
-                </View>
-            </TouchableWithoutFeedback>
-            <View style={styles.spacer}></View>
-            {/*
-            <TouchableWithoutFeedback onPress={() => setIsBadges(false)}>
-                <View  style={!isBadges ? styles.isBadges : styles.notBadges}>
-                    <Text style={{color: !isBadges ? 'white' : Colors.secondaryColor}}>LEADERBOARD</Text>
-                </View>
-            </TouchableWithoutFeedback>
-            */}
-        </View>
+        <SegmentedControl selectedIndex={isBadges ? 0 : 1}
+                          values={['Badges', 'Leaderboard']}
+                          onChange={onTabPress} />
         {isBadges ? (
             <AchievementSwipe
                 achievements={currentUser.data.achievements}
@@ -68,21 +59,27 @@ export const AchievementScreen = ({currentUser }) => {
                 numColumns={3}
                 horizontal={false}
                 inset={{paddingBottom: 120,}}
+                disableSnapping
             />
         ) :
-            region 
+            region
             &&
-            <>
-                <View style={{ height: '100%' }}>
-                    <Leaderboard regionID={region.id} style={$S.subheadLink}/>
-                </View>
-            </>        
+              <View style={{ flex: 1 }}>
+                  <Leaderboard regionID={region.id} />
+              </View>
         }
       </View>
     );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    margin: 0, 
+    padding: 15, 
+    paddingBottom: 0, 
+    flex: 1, 
+    backgroundColor: 'white' 
+  },
     isBadges: {
         backgroundColor: Colors.selectionColor,
         paddingVertical: 5,
@@ -119,10 +116,6 @@ const styles = StyleSheet.create({
 });
 
 
-export default connect(({users}) => {
-    return {
-      currentUser: users.current,
-    };
-  }, dispatch => ({
-    loadHistory: (...args) => dispatch(actions.loadHistory(...args)),
-  }))(AchievementScreen);
+export default connect(({users}) => ({
+  currentUser: users.current,
+}))(AchievementScreen);

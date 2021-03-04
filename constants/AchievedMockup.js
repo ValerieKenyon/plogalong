@@ -5,22 +5,22 @@ import { pluralize } from '../util/string';
 
 import Umbrella from '../assets/svg/achievement_badges_48_48/baseline-beach_access-48px.svg';
 import SingleCheckmark from '../assets/svg/achievement_badges_48_48/baseline-done_outline-48px.svg';
-import Team from '../assets/svg/achievement_badges_48_48/011-team-leader_48.svg';
+import Team from '../assets/svg/achievement_badges_24_24/groups-24px.svg';
 import Compass from '../assets/svg/achievement_badges_48_48/baseline-explore-48px.svg';
 import TrafficLight from '../assets/svg/achievement_badges_48_48/baseline-traffic-48px.svg';
 import Globe from '../assets/svg/achievement_badges_48_48/baseline-language-48px.svg';
-import FlowerBud from '../assets/svg/achievement_badges_48_48/baseline-spa-48px.svg';
+import FlowerBud from '../assets/svg/achievement_badges_24_24/local_florist-24px.svg';
 import Syringe from '../assets/svg/achievement_badges_48_48/syringe_48.svg';
 import Bike from '../assets/svg/achievement_badges_48_48/04-Activities-bike-015-bike_48.svg';
 import DoubleCheckmark from '../assets/svg/achievement_badges_48_48/baseline-done_all-48px.svg';
-import Flower from '../assets/svg/achievement_badges_48_48/baseline-local_florist-48px.svg';
+import Mosquito from '../assets/svg/achievement_badges_48_48/mosquito_48.svg';
 import TourMap from '../assets/svg/achievement_badges_48_48/baseline-map-48px.svg';
 import Waterpolo from '../assets/svg/achievement_badges_48_48/017-waterpolo_48.svg';
 import Home from '../assets/svg/achievement_badges_48_48/baseline-home-48px.svg';
-import DogWalking from '../assets/svg/achievement_badges_48_48/Helpers-02_48.svg';
-import Chicken from '../assets/svg/achievement_badges_48_48/chicken-looking-right_48.svg';
-import Leaves from '../assets/svg/achievement_badges_48_48/leaves_48.svg';
-import Bear from '../assets/svg/achievement_badges_48_48/bear_48.svg';
+import DogWalking from '../assets/svg/achievement_badges_48_48/man-carrying-a-dog-with-a-belt-to-walk_48.svg';
+import Chicken from '../assets/svg/achievement_badges_48_48/hen_48.svg';
+import Leaves from '../assets/svg/achievement_badges_24_24/eco-24px.svg';
+import Bear from '../assets/svg/achievement_badges_48_48/polar-bear_48.svg';
 import Face from '../assets/svg/achievement_badges_48_48/baseline-face-48px.svg';
 import Airplane from '../assets/svg/achievement_badges_48_48/baseline-flight_land-48px.svg';
 import Star from '../assets/svg/achievement_badges_48_48/baseline-grade-48px.svg';
@@ -36,7 +36,19 @@ import marathoner from '../assets/svg/achievement_badges_24_24/directions_run-24
 import waterSports from '../assets/svg/achievement_badges_24_24/rowing-24px.svg';
 import twofer from '../assets/svg/achievement_badges_24_24/looks_two-24px.svg';
 import noButts from '../assets/svg/achievement_badges_24_24/smoke_free-24px.svg';
-import breakTheSeal from '../assets/svg/achievement_badges_24_24/lock_open-24px.svg';
+import breakTheSeal from '../assets/svg/achievement_badges_24_24/house-24px.svg';
+import hotToTrot from '../assets/svg/achievement_badges_24_24/horse-face.svg';
+import kittyCorner from '../assets/svg/achievement_badges_24_24/cat-face.svg';
+import adoptAHighwayForDriving from '../assets/svg/achievement_badges_24_24/road-with-broken-line.svg';
+import evilKnievelForMotorbiking from '../assets/svg/achievement_badges_24_24/motorbike-helmet.svg';
+import snowflakeForWinterSports from '../assets/svg/achievement_badges_24_24/snowflake.svg';
+import beachBum from '../assets/svg/achievement_badges_24_24/beach_access-24px.svg';
+import halloween from '../assets/svg/achievement_badges_24_24/halloween.svg';
+import holidays from '../assets/svg/achievement_badges_24_24/holly-leaves-with-berries.svg';
+import partyHat from '../assets/svg/achievement_badges_24_24/party-hat.svg';
+import earlyBird from '../assets/svg/achievement_badges_24_24/early-bird.svg';
+import nightOwl from '../assets/svg/achievement_badges_24_24/owl.svg';
+import turkey from '../assets/svg/achievement_badges_24_24/turkey.svg';
 
 
 /** @typedef {import('../firebase/project/functions/shared').UserAchievements} UserAchievements */
@@ -97,7 +109,7 @@ const AchievementTypes = {
   },
   bugZapper: {
     badgeTheme: 'Bug Zapper',
-    icon: Flower,
+    icon: Mosquito,
     description: 'Removed standing water',
     incompleteDescription: 'Remove standing water',
   },
@@ -192,6 +204,78 @@ const AchievementTypes = {
     description: 'Plogged on the water',
     incompleteDescription: 'Plog on the water',
   },
+  hotToTrot: {
+    badgeTheme: 'Hot to Trot',
+    icon: hotToTrot,
+    description: 'Plogged on horseback',
+    incompleteDescription: 'Plog on horseback',
+  },
+  kittyCorner: {
+    badgeTheme: 'Kitty Corner',
+    icon: kittyCorner,
+    description: 'Plogged with your cat',
+    incompleteDescription: 'Plog with your cat',
+  },
+  adoptAHighwayForDriving: {
+    badgeTheme: 'Adopt a Highway',
+    icon: adoptAHighwayForDriving,
+    description: 'Plogged while driving',
+    incompleteDescription: 'Plog while driving',
+  },
+  evilKnievelForMotorbiking: {
+    badgeTheme: 'Evil Knievel',
+    icon: evilKnievelForMotorbiking,
+    description: 'Plogged while motorbiking',
+    incompleteDescription: 'Plog while motorbiking',
+  },
+  snowflakeForWinterSports: {
+    badgeTheme: 'Snowflake',
+    icon: snowflakeForWinterSports,
+    description: 'Plogged while doing winter sports',
+    incompleteDescription: 'Plog while doing winter sports',
+  },
+  beachBum: {
+    badgeTheme: 'Beach Bum',
+    icon: beachBum,
+    description: 'Plogged a beach',
+    incompleteDescription: 'Plog a beach',
+  },
+  boo: {
+    badgeTheme: 'Boo!',
+    icon: halloween,
+    description: 'Plogged on Halloween',
+    incompleteDescription: 'Plog on Halloween',
+  },
+  happyHolidays: {
+    badgeTheme: 'Happy Holidays',
+    icon: holidays,
+    description: 'Plogged in December',
+    incompleteDescription: 'Plog in December',
+  },
+  happyNewYear: {
+    badgeTheme: 'Happy New Year',
+    icon: partyHat,
+    description: 'Plogged on January 1st',
+    incompleteDescription: 'Plog on January 1st',
+  },
+  earlyBird: {
+    badgeTheme: 'Early Bird',
+    icon: earlyBird,
+    description: 'Plogged in the morning',
+    incompleteDescription: 'Plog in the morning',
+  },
+  nightOwl: {
+    badgeTheme: 'Night Owl',
+    icon: nightOwl,
+    description: 'Plogged in the evening',
+    incompleteDescription: 'Plog in the evening',
+  },
+  // plogTurkey: {
+  //   badgeTheme: 'Plog Turkey',
+  //   icon: turkey,
+  //   description: 'Plogged on Thanksgiving',
+  //   incompleteDescription: 'Plog on Thanksgiving',
+  // },
 };
 
 

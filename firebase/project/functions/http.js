@@ -86,19 +86,21 @@ async function userLinked(_, context) {
     const dataDoc = Users.doc(context.auth.uid);
     const [user, userData] = await Promise.all([
       app.auth().getUser(context.auth.uid),
-      t.get(dataDoc)
+      /** @type {Promise<firebase.firestore.DocumentSnapshot>} */ (t.get(dataDoc))
     ]);
 
-    if (!user.providerData.length || !userData.exists())
+    if (!user.providerData.length || !userData.exists)
       return null;
 
+    const providers = user.providerData.map(pd => pd.providerId).join(',');
+    const changes = { providers };
     const data = userData.data();
 
-    if (data.linked)
-      return [];
+    if (!data.displayName)
+      data.displayName = user.displayName;
 
-    const regionIDs = await regions.updateLeaderboardsForUser(user.uid, data.stats, t);
-    t.update(dataDoc, { linked: true });
+    // const regionIDs = await regions.updateLeaderboardsForUser(user.uid, data.stats, t);
+    t.update(dataDoc, changes);
     return regionIDs;
   });
 
@@ -145,7 +147,7 @@ async function loadUserProfile(data, context) {
     throw new HttpsError('permission-denied', 'That profile is private');
 
   return {
-    last: user.metadata.lastSignInTime,
+    last: stats && stats.latest ? stats.latest.dateTime.toDate().toISOString() : user.metadata.lastSignInTime,
     created: user.metadata.creationTime,
     plogCount: stats && stats.total && stats.total.count || 0,
     displayName,
@@ -157,7 +159,7 @@ async function loadUserProfile(data, context) {
 
 /**
  * @typedef {object} MergeAccountRequest
- * @property {string} userID uid of the anonymous user to merge into this account
+ * @property {string} userID
  * @property {string} merge
  * @property {boolean} [skipPlogMerge]
  */
@@ -202,7 +204,7 @@ async function mergeWithAccount(data, context) {
   }
 
   if (!skipPlogMerge)
-    await users.mergeUsers(data.userID, context.auth.uid);
+    await users.mergeUsers(context.auth.uid, data.userID);
 
   await app.auth().deleteUser(data.userID);
   await Users.doc(data.userID).delete();
@@ -278,7 +280,7 @@ async function reportPlog(data, context) {
  * @param {functions.https.CallableContext} context
  */
 async function getRegionInfo(data, context) {
-  if (!(context.auth || context.auth.uid))
+  if (!context.auth || !context.auth.uid)
     throw new HttpsError('unauthenticated', 'Request not authenticated');
 
   if (typeof data.latitude !== "number" || typeof data.longitude !== "number")
@@ -288,7 +290,7 @@ async function getRegionInfo(data, context) {
 }
 
 /**
- * @param {{ regionID: string }} data
+ * @param {{ regionID: string, limit?: number }} data
  * @param {functions.https.CallableContext} context
  */
 async function getRegionLeaders(data, context) {
@@ -303,26 +305,22 @@ async function getRegionLeaders(data, context) {
   if (!region.exists)
     throw new HttpsError('not-found', 'Invalid region id');
 
-  /** @type {import('./shared').RegionData} */
-  const { leaderboard: { ids = [], data: leaderData = {} } = { }, county } = region.data();
+  const { county } = region.data();
 
   if (!county)
     throw new HttpsError('not-found', 'Invalid region id');
 
-  const users = await $u.whereIn(Users, ids).then(
-    users => users.reduce((m, u) => {
-      m[u.id] = u;
-      return m;
-    }, {}));
+  const max = Math.min(data.limit || 20, 30);
+  const users = await regions.getLeaders(data.regionID, max);
 
-  const leaders = ids.map(id => {
-    const user = users[id];
-    const { displayName, profilePicture } = user.data();
+  const leaders = users.map(user => {
+    const { displayName, profilePicture, id, stats } = user;
+    const { count: regionCount, milliseconds: regionMilliseconds } = stats.total.region[data.regionID];
 
     return {
-      id: user.id,
-      regionCount: leaderData[user.id].count,
-      regionMilliseconds: leaderData[user.id].milliseconds,
+      id,
+      regionCount,
+      regionMilliseconds,
       profilePicture,
       displayName,
     };
@@ -332,6 +330,30 @@ async function getRegionLeaders(data, context) {
     region: $u.regionInfoForDoc(region),
     leaders
   };
+}
+
+/**
+ * @param {{ type: string, payload: any }} data
+ * @param {functions.https.CallableContext} context
+ */
+async function httpEndpoint(data, context) {
+  switch (data.type) {
+    case 'likePlog':
+      return await likePlog(data.payload, context);
+    case 'loadUserProfile':
+      return await loadUserProfile(data.payload, context);
+    case 'mergeWithAccount':
+      return await mergeWithAccount(data.payload, context);
+    case 'reportPlog':
+      return await reportPlog(data.payload, context);
+    case 'getRegionInfo':
+      return await getRegionInfo(data.payload, context);
+    case 'getRegionLeaders':
+      return await getRegionLeaders(data.payload, context);
+    case 'userLinked':
+      return await userLinked(data.payload, context);
+  }
+  return {};
 }
 
 /** @typedef {Unwrapped<ReturnType<typeof getRegionInfo>>} RegionInfo */
@@ -346,4 +368,6 @@ module.exports = {
   getRegionInfo,
   getRegionLeaders,
   userLinked,
+
+  httpEndpoint
 };
